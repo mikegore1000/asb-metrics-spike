@@ -56,18 +56,27 @@ namespace NetStandardClientEndpoint
         {
             var processingStartTime = DateTimeOffset.UtcNow;
 
-            await next.Handle(message);
+            try
+            {
+                await next.Handle(message);
+                telemetryClient.GetMetric("Messages Successfully Processed").TrackValue(1);
+            }
+            catch (Exception)
+            {
+                telemetryClient.GetMetric("Messages Processing Errors").TrackValue(1);
+                throw;
+            }
 
             var dateSent = (DateTimeOffset)message.UserProperties["DateTimeSent"];
             var processingEndTime = DateTimeOffset.UtcNow;
 
             var processingTime = processingEndTime - processingStartTime;
             var criticalTime = processingEndTime - dateSent;
-            var timeToExceedSLA = sla - criticalTime;
+            var timeToExceedSla = sla - criticalTime;
 
             telemetryClient.GetMetric("Processing Time").TrackValue(processingTime.TotalSeconds);
             telemetryClient.GetMetric("Critical Time").TrackValue(criticalTime.TotalSeconds);
-            telemetryClient.GetMetric("Time to exceed SLA").TrackValue(timeToExceedSLA.TotalSeconds);
+            telemetryClient.GetMetric("Time to exceed SLA").TrackValue(timeToExceedSla.TotalSeconds);
         }
     }
 
